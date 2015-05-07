@@ -2,7 +2,7 @@
 
 from opentuner.search import technique
 
-class PatternSearch(technique.SequentialSearchTechnique):
+class MlSearch(technique.SequentialSearchTechnique):
   def main_generator(self):
 
     objective   = self.objective
@@ -104,4 +104,4 @@ class PatternSearch(technique.SequentialSearchTechnique):
 
 
 # register our new technique in global list
-technique.register(PatternSearch())
+technique.register(MlSearch())

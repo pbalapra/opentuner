@@ -1,12 +1,9 @@
 #!/usr/bin/env python
 #
 # This is a simple testcase purely for testing the autotuner
+# http://www.cs.man.ac.uk/~jknowles/parego/testsuite.c
 #
-# http://en.wikipedia.org/wiki/Rosenbrock_function
-#
-# Also supports some other test functions taken from:
-# http://en.wikipedia.org/wiki/Test_functions_for_optimization
-#
+
 
 import adddeps  # fix sys.path
 
@@ -25,7 +22,7 @@ log = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser(parents=opentuner.argparsers())
 parser.add_argument('--dimensions', type=int, default=2,
-                    help='dimensions for the Rosenbrock function')
+                    help='dimensions for the ParEGO test functions')
 parser.add_argument('--domain', type=float, default=1000,
                     help='bound for variables in each dimension')
 parser.add_argument('--function', default='f_dtlz1a',

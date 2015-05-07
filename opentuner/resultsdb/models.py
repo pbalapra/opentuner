@@ -254,7 +254,7 @@ class Result(Base):
   energy = Column(Float)
   size = Column(Float)
   confidence = Column(Float)
-  #extra = Column(PickleType)
+  extra = Column(PickleType)
 
   #set by SearchDriver
   was_new_best = Column(Boolean)
@@ -316,4 +316,3 @@ if __name__ == '__main__':
   #test:
   engine = create_engine('sqlite:///:memory:', echo=True)
   Base.metadata.create_all(engine)
-

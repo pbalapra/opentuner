@@ -1,5 +1,5 @@
-OpenTuner
-=========
+Model-based OpenTuner
+=====================
 
 Program autotuning has been demonstrated in many domains to achieve better
 or more portable performance.  However, autotuners themselves are often not
@@ -16,6 +16,9 @@ ensembles of disparate search techniques simultaneously, techniques which
 perform well will receive larger testing budgets and techniques which perform
 poorly will be disabled.
 
+
+This is a development version of model-based OpenTuner for Pareto multi objective search. The goal is to extend OpenTuner for generic performance optimization setting using model based search algorithms developed at Argonne National Lab.
+
 System dependencies
 -------------------
 
@@ -29,19 +32,6 @@ On Ubuntu/Debian there can be installed with:
 
 [debian-packages-deps]: https://raw.github.com/jansel/opentuner/master/debian-packages-deps
 [sqlalchemy-dialects]: http://docs.sqlalchemy.org/en/rel_0_8/dialects/index.html
-
-
-Installation
--------------------
-OpenTuner (and dependencies) can be installed with
-
-    sudo pip install opentuner
-
-or
-
-    pip install --user opentuner
-
-This will not install any of the example programs.
 
 
 Development installation
@@ -113,4 +103,3 @@ OpenTuner is supported in part by the United States Department of Energy
 
 [xstack]: http://science.energy.gov/ascr/research/computer-science/ascr-x-stack-portfolio/
 [dtec]: http://www.dtec-xstack.org/
-

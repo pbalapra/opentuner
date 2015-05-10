@@ -184,5 +184,3 @@ if __name__ == '__main__':
     PetaBricksInterface(args).test_config()
   else:
     PetaBricksInterface.main(args)
-
-

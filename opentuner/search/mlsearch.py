@@ -1,6 +1,15 @@
 
 
 from opentuner.search import technique
+import random
+
+
+from sklearn import ensemble
+import numpy as np
+import pandas as pd
+import copy
+import random
+import json
 
 class MlSearch(technique.SequentialSearchTechnique):
   def main_generator(self):
@@ -8,100 +17,132 @@ class MlSearch(technique.SequentialSearchTechnique):
     objective   = self.objective
     driver      = self.driver
     manipulator = self.manipulator
+    init_samp_size = 1000
+    print manipulator.params
 
-    # start at a random position
-    points=list()
+    # generate initial samples
+    cfg_list=list()
+    train_list = list()
+    test_list = list()
+    test_df = pd.DataFrame()
     print '==============================='
-    for i in range(10):
-        center = driver.get_configuration(manipulator.random())
-        down_cfg = manipulator.copy(center.data)
-        print down_cfg
-        points.append(down_cfg)
-        self.yield_nonblocking(center)
+    for i in xrange(init_samp_size):
+        cfg = driver.get_configuration(manipulator.random())
+        cfg_list.append(cfg)
+        test_list.append(cfg.data)
     print '==============================='
-    yield None # wait for all results
+    test_df = pd.DataFrame(test_list)
+    print test_df
 
-    #down_cfg=driver.get_configuration(down_cfg)
-    #print driver.objective.display(down_cfg)
+    #sys.exit(0)
 
-    print points
-    for p in points:
-        cfg = driver.get_configuration(p)
-        #print cfg
-        #result=driver.results_query(config=cfg)
+    cfg = cfg_list[0]
+    params = manipulator.parameters(cfg.data)
+    dimension = len(params)
+    print dimension
+
+    samp_size=min(30,dimension+1)
+    if dimension+1 < 30:
+        samp_size=30
+
+    train_index = random.sample(range(init_samp_size), samp_size)
+    test_index = list(set(range(init_samp_size)) - set(train_index))
+
+    #evalaute training index points
+    for i in train_index:
+        cfg=cfg_list[i]
+        self.yield_nonblocking(cfg)
+    yield None
+
+    results_vec=list()
+    points_vec=list()
+    for i in train_index:
+        p=cfg_list[i]
+        down_cfg = manipulator.copy(p.data)
+        cfg = driver.get_configuration(down_cfg)
         result = driver.results_query(config=cfg).one()
-        #print result.time
-        print result.extra
-        print '-----------'
+        points_vec.append(cfg.data)
+        results_vec.append(result.extra)
 
-    sys.exit(0)
-    center = driver.get_configuration(manipulator.random())
-    self.yield_nonblocking(center)
+    print points_vec
+    print results_vec
+
+    x_train = pd.DataFrame(points_vec)
+    y_train = pd.DataFrame(results_vec)
+    n_objective=y_train.shape[1]
+
+    print x_train
+    print y_train
 
 
+    #initialize model
+    model_list = list()
+    for i in range(n_objective):
+        model = ensemble.ExtraTreesRegressor(n_estimators=1000,random_state=0)
+        model_list.append(model)
 
-    # initial step size is arbitrary
-    step_size = 0.1
+
+    x_test = test_df.iloc[test_index,:]
+    x_test_cfgs = map(lambda x: cfg_list[x], test_index)
+
+    print x_test.shape
+    print len(x_test_cfgs)
+
 
     while True:
-      points = list()
-      for param in manipulator.parameters(center.data):
-        if param.is_primitive():
-          # get current value of param, scaled to be in range [0.0, 1.0]
-          unit_value = param.get_unit_value(center.data)
+        print '######################'
+        # fit model for each objective
+        pred_df=pd.DataFrame()
+        for i in range(n_objective):
+            model = model_list[i]
+            response = y_train.iloc[:,i]
+            model.fit(x_train, response)
+            pred = model.predict(x_test)
+            model_list[i] = model
+            pred_df['obj'+str(i)]=pred
 
-          if unit_value > 0.0:
-            # produce new config with param set step_size lower
-            down_cfg = manipulator.copy(center.data)
-            #print down_cfg
-            param.set_unit_value(down_cfg, max(0.0, unit_value - step_size))
-            #print down_cfg
-            down_cfg = driver.get_configuration(down_cfg)
-            #print down_cfg
-            self.yield_nonblocking(down_cfg)
-            points.append(down_cfg)
+        pred_df_list=pred_df.values.tolist()
+        #print pred_df_list
+        pareto_points_index = objective.result_pareto_front(pred_df_list)
+        #print pareto_points_index
+        assert len(pareto_points_index) > 0
 
-          if unit_value < 1.0:
-            # produce new config with param set step_size higher
-            up_cfg = manipulator.copy(center.data)
-            param.set_unit_value(up_cfg, min(1.0, unit_value + step_size))
-            up_cfg = driver.get_configuration(up_cfg)
-            self.yield_nonblocking(up_cfg)
-            points.append(up_cfg)
+        batch_x_cfgs=map(lambda x: x_test_cfgs[x], pareto_points_index)
 
-        else: # ComplexParameter
-          for mutate_function in param.manipulators(center.data):
-            cfg = manipulator.copy(center.data)
-            mutate_function(cfg)
-            cfg = driver.get_configuration(cfg)
+        #evalaute points
+        for cfg in batch_x_cfgs:
             self.yield_nonblocking(cfg)
-            points.append(cfg)
+        yield None
+
+
+        #print x_train.shape
+        #print y_train.shape
+
+        for p in batch_x_cfgs:
+            down_cfg = manipulator.copy(p.data)
+            cfg = driver.get_configuration(down_cfg)
+            result = driver.results_query(config=cfg).one()
+            points_vec.append(cfg.data)
+            results_vec.append(result.extra)
+
+        x_train = pd.DataFrame(points_vec)
+        y_train = pd.DataFrame(results_vec)
+        print pareto_points_index
+        print len(pareto_points_index)
+        print x_train.shape
+        print y_train.shape
+
+        #update x_test
+        test_index = list(set(range(len(x_test))) - set(pareto_points_index))
+        x_test = x_test.iloc[test_index,:]
+        x_test_cfgs = map(lambda x: x_test_cfgs[x], test_index)
 
 
 
-      yield None # wait for all results
-      #sort points by quality, best point will be points[0], worst is points[-1]
-      print points
-      points.sort(cmp=objective.compare)
-      #sys.exit()
-      #print dir(objective)
-      #down_cfg = manipulator.copy(center.data)
-      #down_cfg = driver.get_configuration(down_cfg)
-      #print dir(driver)#.results_query(down_cfg)
-      #print dir(driver.results_query(config=down_cfg))
-      #print driver.results_query(config=down_cfg).values
-
-      if (objective.lt(driver.best_result.configuration, center)
-          and driver.best_result.configuration != points[0]):
-        # another technique found a new global best, switch to that
-        center = driver.best_result.configuration
-      elif objective.lt(points[0], center):
-        # we found a better point, move there
-        center = points[0]
-      else:
-        # no better point, shrink the pattern
-        step_size /= 2.0
-
-
+        y_train_list=y_train.values.tolist()
+        #print pred_df_list
+        res_points_index = objective.result_pareto_front(y_train_list)
+        print y_train.iloc[res_points_index,:]
+        
 # register our new technique in global list
 technique.register(MlSearch())

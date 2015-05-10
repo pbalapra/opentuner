@@ -1,12 +1,9 @@
 #!/usr/bin/env python
 #
-# This is a simple testcase purely for testing the autotuner
 # http://www.cs.man.ac.uk/~jknowles/parego/testsuite.c
 #
 
-
 import adddeps  # fix sys.path
-
 import argparse
 import logging
 
@@ -14,7 +11,6 @@ import opentuner
 from opentuner.measurement import MeasurementInterface
 from opentuner.search.manipulator import ConfigurationManipulator
 from opentuner.search.manipulator import FloatParameter
-
 
 import math
 
@@ -31,7 +27,9 @@ parser.add_argument('--function', default='f_dtlz1a',
 
 
 class ParEGOBenchmark(MeasurementInterface):
+
   def run(self, desired_result, input, limit):
+    result = opentuner.resultsdb.models.Result()
     cfg = desired_result.configuration.data
     val = 0.0
     if self.args.function == 'f_dtlz1a':
@@ -43,6 +41,7 @@ class ParEGOBenchmark(MeasurementInterface):
 
         for d in xrange(self.args.dimensions):
             x.append(cfg[d])
+
         print x
         g = 0.0;
         for i in xrange(2,self.args.dimensions+1):
@@ -56,8 +55,8 @@ class ParEGOBenchmark(MeasurementInterface):
         val2 = 0.5*(1-x[1])*(1 + g)
         vals.append(val1)
         vals.append(val2)
-
         val=vals[0]
+
     elif self.args.function == 'f_dtlz2a':
         assert self.args.dimensions == 8
         dim = self.args.dimensions
@@ -218,7 +217,7 @@ class ParEGOBenchmark(MeasurementInterface):
         x.append(-1)
         for d in xrange(self.args.dimensions):
             x.append(cfg[d])
-        print x
+        #print x
 
         c = x[1]+x[2];
         f = 20-( 11+3*math.sin((5*c)*(0.5*c)) + 3*math.sin(4*c) + 5 *math.sin(2*c+2));
@@ -228,7 +227,15 @@ class ParEGOBenchmark(MeasurementInterface):
         vals = [y1,y2]
 
 
-    return opentuner.resultsdb.models.Result(time=vals[0],extra=vals)
+    #print '@@@@@@@@@'
+    #print vals
+    #print '@@@@@@@@@'
+
+    result.time=vals[0]
+    result.extra=vals
+    return result
+
+    #return opentuner.resultsdb.models.Result(extra=vals)
 
 
   def manipulator(self):

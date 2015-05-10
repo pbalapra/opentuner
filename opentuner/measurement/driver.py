@@ -80,6 +80,7 @@ class MeasurementDriver(DriverBase):
     else:
       return self.default_limit_multiplier * best.time
 
+
   def report_result(self, desired_result, result, input=None):
     result.configuration = desired_result.configuration
     result.input = input
@@ -261,4 +262,3 @@ def _memorysize():
   except:
     log.warning("failed to get total memory")
   return 1024 ** 3
-

@@ -1850,4 +1850,3 @@ def all_params():
   params = inspect.getmembers(sys.modules[__name__], lambda x: inspect.isclass(
     x) and x.__module__ == __name__ and issubclass(x, Parameter))
   return params
-

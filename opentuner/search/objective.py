@@ -141,11 +141,84 @@ class SearchObjective(object):
     else:
       return result.time
 
+  def pareto_simple_cull(self, inputPoints):
+    """
+    Simple Cull [1] for pareto extraction; runs in O(N^2).
+    Modified the code from [2] for minimization and to return pareto points index
+    [1] http://www.es.ele.tue.nl/pareto/papers/date2007_paretocalculator_final.pdf
+    [2] http://code.activestate.com/recipes/578287-multidimensional-pareto-front/
+    """
+    def dominates(row, candidateRow):
+        """
+        closure because not a generic dominate function;
+        ignore first element which is an index
+        """
+        return sum([row[x] <= candidateRow[x] for x in range(1,len(row))]) == len(row) -1
+
+    for i, p in enumerate(inputPoints):
+        p.insert(0,i)
+
+    paretoPoints = set()
+    paretoPointsIndex = set()
+    candidateRowNr = 0
+    dominatedPoints = set()
+
+    while True:
+        candidateRow = inputPoints[candidateRowNr]
+        inputPoints.remove(candidateRow)
+        rowNr = 0
+        nonDominated = True
+        while len(inputPoints) != 0 and rowNr < len(inputPoints):
+            row = inputPoints[rowNr]
+            if dominates(candidateRow, row):
+                inputPoints.remove(row)
+                dominatedPoints.add(tuple(row[1:]))
+            elif dominates(row, candidateRow):
+                nonDominated = False
+                dominatedPoints.add(tuple(candidateRow[1:]))
+                rowNr += 1
+            else:
+                rowNr += 1
+        if nonDominated:
+            paretoPoints.add(tuple(candidateRow[1:]))
+            paretoPointsIndex.add(candidateRow[0])
+
+        if len(inputPoints) == 0:
+            break
+
+    return paretoPoints, paretoPointsIndex, dominatedPoints
 
 def _project(a1, a2, factor):
   if a1 is None or a2 is None:
     return None
   return a2 + factor * (a2 - a1)
+
+
+class MinimizeExtra(SearchObjective):
+  """
+  minimize Result().extra
+  """
+
+  def pareto_front(self, results):
+    """return pareto index"""
+    paretoPoints, paretoPointsIndex, dominatedPoints = self.pareto_simple_cull(results)
+
+    return paretoPointsIndex
+
+  def result_order_by_terms(self):
+    """return database columns required to order by the objective"""
+    return None
+
+  def result_compare(self, result1, result2):
+    """cmp() compatible comparison of resultsdb.models.Result"""
+    return None
+
+  def config_compare(self, config1, config2):
+    """cmp() compatible comparison of resultsdb.models.Configuration"""
+    return None
+  def result_relative(self, result1, result2):
+    """return None, or a relative goodness of resultsdb.models.Result"""
+    return None
 
 
 class MinimizeTime(SearchObjective):
@@ -171,6 +244,13 @@ class MinimizeTime(SearchObjective):
     if result2.time == 0:
       return float('inf') * result1.time
     return result1.time / result2.time
+
+  def result_pareto_front(self, results):
+    """return pareto index"""
+    paretoPoints, paretoPointsIndex, dominatedPoints = self.pareto_simple_cull(results)
+
+    return list(paretoPointsIndex)
+
 
 
 class MaximizeAccuracy(SearchObjective):
@@ -293,8 +373,3 @@ class ThresholdAccuracyMinimizeTime(SearchObjective):
     log.warning('result_relative() not yet implemented for %s',
                 self.__class__.__name__)
     return None
-
-
-
-
-
